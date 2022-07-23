@@ -30,7 +30,7 @@ params:
     author: Gary Talent
     # author: ["Me", "You"] # multiple authors
     images: ["<link or path of image for opengraph, twitter-cards>"]
-    DateFormat: "January 6, 2013"
+    DateFormat: "January 02, 2006"
     defaultTheme: auto # dark, light
     disableThemeToggle: false
 
@@ -50,11 +50,11 @@ params:
     assets:
         # disableHLJS: true # to disable highlight.js
         # disableFingerprinting: true
-        favicon: "/dt-logo.png"
+        favicon: "/favicon.ico"
         favicon16x16: "<link / abs url>"
-        favicon32x32: "<link / abs url>"
-        apple_touch_icon: "/dt-logo.png"
-        safari_pinned_tab: "/dt-logo.png"
+        favicon32x32: "/favicon-32.png"
+        apple_touch_icon: "/favicon.ico"
+        safari_pinned_tab: "/favicon.ico"
 
     label:
         text: "DrinkingTea"
@@ -79,31 +79,20 @@ params:
     # home-info mode
     homeInfoParams:
         Title: DrinkingTea
-        Content: Tech Blog
+        Content: General tech commentary and technichal deep dives on software development
 
     socialIcons:
-        - name: github
-          url: "https://github.com/drinkingtea"
         - name: RSS
           url: "/index.xml"
-
-    analytics:
-        google:
-            SiteVerificationTag: "XYZabc"
-        bing:
-            SiteVerificationTag: "XYZabc"
-        yandex:
-            SiteVerificationTag: "XYZabc"
+        - name: Gitea
+          url: "https://git.drinkingtea.net/drinkingtea"
+        - name: GitHub
+          url: "https://github.com/drinkingtea"
 
     cover:
         hidden: true # hide everywhere but not in structured data
         hiddenInList: true # hide on list pages and home
         hiddenInSingle: true # hide on single page
-
-    editPost:
-        URL: "https://github.com/gtalent/nostalgia/"
-        Text: "Suggest Changes" # edit text
-        appendFilePath: true # to append file path to Edit link
 
     # for search
     # https://fusejs.io/api/options.html
