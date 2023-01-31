@@ -3,7 +3,9 @@ title:  "MetalClaw"
 author: Gary Talent
 description: "An Efficient Serialization Format"
 categories: ["Tech", "Programming"]
-tags: ["c++", "low memory", "programming", "serialization", "metal claw", "nostalgia"]
+images:
+- /dt-logo.png
+tags: ["cpp", "low memory", "programming", "serialization", "metal claw", "nostalgia"]
 date: 2022-06-25
 showtoc: true
 ---

@@ -1,6 +1,6 @@
 ---
 title: American Life Day?
-date: 2022-06-25
+date: 2023-06-25
 author: Gary Talent
 description: "Remember His Deeds"
 tags: ["Bible Stuff", "Roe", "Dobbs", "Life Day", "Esther"]

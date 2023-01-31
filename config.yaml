@@ -1,7 +1,7 @@
 baseURL: "https://drinkingtea.net"
 languageCode: "en-us"
 title: "DrinkingTea"
-copyright: "Copyright © 2021, Gary Talent; all rights reserved."
+copyright: "Copyright © 2021-2022, Gary Talent; all rights reserved."
 paginate: 5
 theme: PaperMod
 
@@ -26,7 +26,7 @@ params:
     env: production # to enable google analytics, opengraph, twitter-cards and schema.
     title: DrinkingTea
     description: "DrinkingTea description"
-    keywords: [Blog, nostalgia, programming, c++, gba, gameboy advance]
+    keywords: [Blog, nostalgia, programming, cpp, gba, gameboy advance]
     author: Gary Talent
     # author: ["Me", "You"] # multiple authors
     images: ["<link or path of image for opengraph, twitter-cards>"]
