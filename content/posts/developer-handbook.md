@@ -8,6 +8,11 @@ date: 2022-02-23
 showtoc: true
 ---
 
+Note: this document is a copy of a document in the ```Nostalgia``` source repo
+and will periodically be updated.
+
+Last updated: 2023-01-30
+
 ## About
 
 The purpose of the Developer Handbook is similar to that of the README.
@@ -153,10 +158,10 @@ likely will change.
 ### Error Handling
 
 Exceptions are clean and nice in userland code running in environments with
-expansive system resources, but absolutely unacceptable in code running in
-restrictive bare metal environments.
+expansive system resources, but they are a bit of a pain in small bare metal
+environments.
 The GBA build has them disabled.
-Exceptions cause the compiler to generate a great deal of extra code that
+Exceptions cause also the compiler to generate a great deal of extra code that
 inflates the size of the binary.
 The binary size bloat is often cited as one of the main reasons why many
 embedded developers prefer C to C++.
@@ -394,16 +399,16 @@ struct NostalgiaGraphic {
 };
 
 template<typename T>
-constexpr ox::Error model(T *h, NostalgiaPalette *pal) noexcept {
+constexpr ox::Error model(T *h, ox::CommonPtrWith<NostalgiaPalette> auto *pal) noexcept {
 	h->template setTypeInfo<NostalgiaPalette>();
-	// it is also possible to provide the type name and number of fields as function arguments
+	// it is also possible to provide the type name and type version as function arguments
 	//h->setTypeInfo("net.drinkingtea.nostalgia.core.NostalgiaPalette", 1);
 	oxReturnError(h->field("colors", &pal->colors));
 	return OxError(0);
 }
 
 template<typename T>
-constexpr ox::Error model(T *h, NostalgiaGraphic *ng) noexcept {
+constexpr ox::Error model(T *h, ox::CommonPtrWith<NostalgiaGraphic> auto *ng) noexcept {
 	h->template setTypeInfo<NostalgiaGraphic>();
 	oxReturnError(h->field("bpp", &ng->bpp));
 	oxReturnError(h->field("rows", &ng->rows));
@@ -424,7 +429,7 @@ The model system also provides for unions:
 class FileAddress {
 
 	template<typename T>
-	friend constexpr Error model(T*, FileAddress*) noexcept;
+	friend constexpr Error model(T*, ox::CommonPtrWith<FileAddress> auto*) noexcept;
 
 	public:
 		static constexpr auto TypeName = "net.drinkingtea.ox.FileAddress";
@@ -443,21 +448,31 @@ class FileAddress {
 };
 
 template<typename T>
-constexpr Error model(T *h, FileAddress::Data *obj) noexcept {
+constexpr Error model(T *h, ox::CommonPtrWith<FileAddress::Data> auto *obj) noexcept {
 	h->template setTypeInfo<FileAddress::Data>();
-	oxReturnError(h->field("path", SerStr(&obj->path)));
-	oxReturnError(h->field("constPath", SerStr(&obj->path)));
+	oxReturnError(h->fieldCString("path", &obj->path));
+	oxReturnError(h->fieldCString("constPath", &obj->path));
 	oxReturnError(h->field("inode", &obj->inode));
 	return OxError(0);
 }
 
 template<typename T>
-constexpr Error model(T *h, FileAddress *fa) noexcept {
-	h->template setTypeInfo<FileAddress>();
-	oxReturnError(h->field("type", bit_cast<int8_t*>(&fa->m_type)));
-	oxReturnError(h->field("data", UnionView(&fa->m_data, static_cast<int>(fa->m_type))));
+constexpr Error model(T *io, ox::CommonPtrWith<FileAddress> auto *fa) noexcept {
+	io->template setTypeInfo<FileAddress>();
+	// cannot read from object in Reflect operation
+	if constexpr(ox_strcmp(T::opType(), OpType::Reflect) == 0) {
+		int8_t type = 0;
+		oxReturnError(io->field("type", &type));
+		oxReturnError(io->field("data", UnionView(&fa->m_data, 0)));
+	} else {
+		auto type = static_cast<int8_t>(fa->m_type);
+		oxReturnError(io->field("type", &type));
+		fa->m_type = static_cast<FileAddressType>(type);
+		oxReturnError(io->field("data", UnionView(&fa->m_data, static_cast<int>(fa->m_type))));
+	}
 	return OxError(0);
 }
+
 ```
 
 There are also macros in ```<ox/model/def.hpp>``` for simplifying the declaration of models:
@@ -519,7 +534,9 @@ ox::Result<NostalgiaPalette> loadPalette2(const Buffer &buff) noexcept {
 
 ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 	NostalgiaPalette pal;
-	oxReturnError(ox::readMC(buff.data(), buff.size(), &pal));
+	std::size_t sz = 0;
+	oxReturnError(ox::readMC(buff.data(), buff.size(), &pal, &sz));
+	buffer.resize(sz);
 	return pal;
 }
 ```
@@ -531,7 +548,9 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 
 ox::Result<ox::Buffer> writeSpritePalette1(NostalgiaPalette *pal) noexcept {
 	ox::Buffer buffer(ox::units::MB);
-	oxReturnError(ox::writeMC(buffer.data(), buffer.size(), pal));
+	std::size_t sz = 0;
+	oxReturnError(ox::writeMC(buffer.data(), buffer.size(), pal, &sz));
+	buffer.resize(sz);
 	return std::move(buffer);
 }
 
