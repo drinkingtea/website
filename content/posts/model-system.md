@@ -238,8 +238,8 @@ But ideally, the structure of the data will be stored along side the data
 somewhere, even if it is not interspersed with the data as it is in a format
 like JSON or MessagePack.
 
-It would be nice to have a way to handle data from an unrelated program that
-knows nothing of the matching type.
+We should to have a way to handle data from an unrelated program that knows
+nothing of the matching type.
 Ideally, we could take the ```TypeName``` and ```TypeVersion``` stored as a
 header to the data (or some stand in identifier that might map to those) and
 look up a descriptor of the type if needed.
