@@ -65,10 +65,10 @@ As stated earlier, the API will generally not be discussed here, but this is an
 area where the API foists a requirement on the format itself.
 The API does not necessarily want to foist this requirement on the format, but
 C++ makes it rather hard not to.
-The standard does not guarantee the size of the language's integer types.
+The language standard does not guarantee the size of the integer types.
 C++ has types that vary in size between compilers and processor architectures.
-Many times developers use long one platform where it is 64 bit, but it will be
-32 bit on another.
+Many times developers use long on one platform where it is 64 bit, but it will
+be 32 bit on another.
 While developers *should* simply use int{8,16,32,64}_t these days, that should not be
 assumed.
 Such an assumption will result in the wrong size type being used to read data

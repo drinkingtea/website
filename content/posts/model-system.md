@@ -1,7 +1,7 @@
 ---
 title:  "Ox Model System"
 author: Gary Talent
-description: "A Poor Mans Reflection"
+description: "A foundation for data handling"
 categories: ["Tech", "Programming"]
 images:
 - /dt-logo.png
@@ -17,11 +17,23 @@ Note: this is based on the version of Ox in this commit in the [Nostalgia repo](
 In languages like Go and Python, there is a feature called reflection.
 This essentially allows functions to iterate over arbitrary struct types to get
 or set its data, or simply get information about the type.
-Reflection is most commonly used for object serialization, but can be useful
-for a wide variety of things.
+Reflection is most commonly used for object serialization, and that is the main
+use for it in *Nostalgia*.
+
+Aside from creating a poor man's reflection system, this will cover the how
+*Nostalgia* identifies and handles its stored data.
 
 ## True Reflection
-Here is an example from the JSON package of the Go standard library:
+Reflection, in short, allows code that knows nothing about the about the type
+that it is given to iterate over each field of that type, and get the types of
+those fields.
+
+C++ does not have a reflection system.
+Languages like Go and Rust do, which allows for, among other things, very
+simple serialization APIs.
+
+Here is an example from the JSON package of the Go standard library, which uses
+Go's reflection system:
 ```go
 type ColorGroup struct {
 	ID     int
@@ -42,9 +54,8 @@ There is similar support for Go's GOB format.
 
 ## The Boost Approach
 
-C++ does not have a reflection system.
-There is a serious proposal to add one, but its approval and implementation
-remains years away.
+There is a serious proposal to add a reflection system to C++, but its approval
+and implementation remains years away.
 To compensate for this Boost created an interesting API for their [serialization
 system](https://www.boost.org/doc/libs/1_72_0/libs/serialization/doc/tutorial.html).
 
@@ -76,8 +87,21 @@ That same function can be used for both serialization and deserialization.
 With the addition of a trivial-to-write serialize function for each type, you
 have effectively created a semi-manual reflection system for iterating over
 member variables.
-This is more trouble than the Go equivalent, but it should actually get better
-performance than Go's reflection system.
+
+Experienced programmers will probably know what is going on here, but the ```ar
+&``` seen throughout the serialize function is actually a function call, and
+not a bitwise and.
+And it is not always the same function call either.
+The degrees and minutes fields are being passed into a function that takes an
+int, where as the seconds is being passed into a function of the same name that
+takes a float.
+The gps_position type could itself be passed into such a function, because
+objects of classes that do not have specialized overloads will go into a
+general function that uses that type's serialize function for that type.
+
+This is more trouble than the Go equivalent, as it essentially requires us to
+declare the data section of our types a second time, but it should actually get
+better performance than Go's reflection system.
 And, unlike the Go example, Ox can adopt this approach for itself.
 
 ## Ox Models
@@ -93,7 +117,7 @@ Naming the function 'serialize' also needlessly pigeonholes the system, as
 these functions could be used for a lot more than just serialization.
 
 Given these criticisms and some advancements in the C++ language, here is an
-example of the Ox model system:
+example of the model system of the Ox (*Nostalgia*'s std-ish library):
 
 ```cpp
 struct NostalgiaGraphic {
@@ -243,7 +267,9 @@ nothing of the matching type.
 Ideally, we could take the ```TypeName``` and ```TypeVersion``` stored as a
 header to the data (or some stand in identifier that might map to those) and
 look up a descriptor of the type if needed.
-And Ox provides support for exactly that.
+And Ox provides support for exactly that with the
+[Claw](/posts/developer-handbook/#serialization) header
+format.
 Type descriptors are generated through the model system, so each type with a
 model already has what it needs to have a type descriptor.
 
