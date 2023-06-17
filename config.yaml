@@ -10,8 +10,6 @@ buildDrafts: false
 buildFuture: false
 buildExpired: false
 
-googleAnalytics: UA-123-45
-
 outputs:
     home:
          - HTML
@@ -51,7 +49,7 @@ params:
         # disableHLJS: true # to disable highlight.js
         # disableFingerprinting: true
         favicon: "/favicon.ico"
-        favicon16x16: "<link / abs url>"
+        favicon16x16: "/favicon-16.png"
         favicon32x32: "/favicon-32.png"
         apple_touch_icon: "/favicon.ico"
         safari_pinned_tab: "/favicon.ico"
