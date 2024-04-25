@@ -8,10 +8,11 @@ date: 2022-02-23
 showtoc: true
 ---
 
-Note: this document is a copy of a document in the ```Nostalgia``` source repo
-and will periodically be updated.
+Note: this document is a copy of a document in the [Nostalgia
+repo](https://git.drinkingtea.net/drinkingtea/nostalgia) and will periodically
+be updated.
 
-Last updated: 2023-01-30
+Last updated: 2023-11-29
 
 ## About
 
@@ -33,20 +34,27 @@ All components have a platform indicator next to them:
     (-G) - GBA
     (P-) - PC
 
-* Nostalgia
-  * core - platform abstraction and user I/O (PG)
-    * gba - GBA implementation (-G)
-    * glfw - GLFW implementation (P-)
-    * userland - common things needed by all non-bare-metal implementations (P-)
-    * studio - studio plugin for core (P-)
-  * geo - geometry types (PG)
-  * glutils - OpenGL helpers (P-)
-  * player - plays the games (PG)
-  * studio - makes the games (P-)
-  * tools - command line tools (P-)
+* nostalgia
+   * modules
+	  * core - platform abstraction and user I/O (PG)
+		 * gba - GBA implementation (-G)
+		 * glfw - GLFW implementation (P-)
+		 * userland - common things needed by all non-bare-metal implementations (P-)
+		 * studio - studio plugin for core (P-)
+	  * scene - defines processes map data (PG)
+		 * studio - studio plugin for scene (P-)
+   * player - plays the games (PG)
+   * studio - makes the games (P-)
+   * tools - command line tools (P-)
+	   * pack - packs a studio project directory into an OxFS file (P-)
+* keel - Asset management framework
+* glutils - OpenGL helpers (P-)
+* studio - framework for making studio application for making games (P-)
+   * modlib - library for making studio modules
+   * applib - has a function call that starts the application, allows actual
+	          app to statically link and load up modules
+* tools - command line tools (P-)
     * pack - packs a studio project directory into an OxFS file (P-)
-  * world - defines processes map data (PG)
-    * studio - studio plugin for world (P-)
 * deps - project dependencies
   * Ox - Library of things useful for portable bare metal and userland code. Not really that external...
     * clargs - Command Line Args processing (PG)
@@ -56,7 +64,8 @@ All components have a platform indicator next to them:
     * oc - Organic Claw serialization (wrapper around JsonCpp), builds on model (P-)
     * model - Data structure modelling (PG)
     * std - Standard-ish Library with a lot missing and some things added (PG)
-  * GbaStartup - GBA assembly startup code, mostly pulled from devkitPro under MPL 2.0 (-G)
+  * TeaGBA - Library for interacting with GBA, with startup code mostly pulled
+	         from devkitPro under MPL 2.0 (-G)
 
 ## Code Base Conventions
 
@@ -140,18 +149,6 @@ memory leak is not noticeable because the std::vector was meant to exist for
 the entire life of the process, other classes likely will not get away with it
 due to more substantial constructors and more frequent instantiations of the
 classes in question.
-
-### Pointers vs References
-
-Pointers are generally preferred to references. References should be used for
-optimizing the passing in of parameters and for returning from accessor
-operators (e.g. ```T &Vector::operator[](size_t)```).
-As parameters, references should always be const.
-A non-const reference is generally used because the parameter value is changed
-in the function, but it will look like it was passed in by value where it is
-called and thus not subject to change.
-The reference operator makes it clear to the caller that the value can and
-likely will change.
 
 ## Project Systems
 
@@ -335,8 +332,8 @@ the user almost certainly wants to know about it.
 ```oxTrace``` and ```oxTracef```:
 ```cpp
 void f(int x, int y) { // x = 9, y = 4
-	oxTrace("nostalgia::core::sdl::gfx") << "f:" << x << y; // Output: "f: 9 4"
-	oxTracef("nostalgia::core::sdl::gfx", "f: {}, {}", x, y); // Output: "f: 9, 4"
+	oxTrace("nostalgia.core.sdl.gfx") << "f:" << x << y; // Output: "f: 9 4"
+	oxTracef("nostalgia.core.sdl.gfx", "f: {}, {}", x, y); // Output: "f: 9, 4"
 }
 ```
 
@@ -524,18 +521,18 @@ That reads:
 ```cpp
 #include <ox/mc/read.hpp>
 
-ox::Result<NostalgiaPalette> loadPalette1(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette1(Buffer const&buff) noexcept {
 	return ox::readMC<NostalgiaPalette>(buff);
 }
 
-ox::Result<NostalgiaPalette> loadPalette2(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette2(Buffer const&buff) noexcept {
 	return ox::readMC<NostalgiaPalette>(buff.data(), buff.size());
 }
 
-ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette3(Buffer const&buff) noexcept {
 	NostalgiaPalette pal;
 	std::size_t sz = 0;
-	oxReturnError(ox::readMC(buff.data(), buff.size(), &pal, &sz));
+	oxReturnError(ox::readMC(buff.data(), buff.size(), pal, &sz));
 	buffer.resize(sz);
 	return pal;
 }
@@ -546,15 +543,15 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 ```cpp
 #include <ox/mc/write.hpp>
 
-ox::Result<ox::Buffer> writeSpritePalette1(NostalgiaPalette *pal) noexcept {
+ox::Result<ox::Buffer> writeSpritePalette1(NostalgiaPalette const&pal) noexcept {
 	ox::Buffer buffer(ox::units::MB);
 	std::size_t sz = 0;
 	oxReturnError(ox::writeMC(buffer.data(), buffer.size(), pal, &sz));
 	buffer.resize(sz);
-	return std::move(buffer);
+	return buffer;
 }
 
-ox::Result<ox::Buffer> writeSpritePalette2(NostalgiaPalette *pal) noexcept {
+ox::Result<ox::Buffer> writeSpritePalette2(NostalgiaPalette const&pal) noexcept {
 	return ox::writeMC(pal);
 }
 ```
@@ -586,13 +583,7 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 ```cpp
 #include <ox/oc/write.hpp>
 
-ox::Result<ox::Buffer> writeSpritePalette1(NostalgiaPalette *pal) noexcept {
-	ox::Buffer buffer(ox::units::MB);
-	oxReturnError(ox::writeOC(buffer.data(), buffer.size(), pal));
-	return std::move(buffer);
-}
-
-ox::Result<ox::Buffer> writeSpritePalette2(NostalgiaPalette *pal) noexcept {
+ox::Result<ox::Buffer> writeSpritePaletteOC(NostalgiaPalette const&pal) noexcept {
 	return ox::writeOC(pal);
 }
 ```
@@ -624,8 +615,8 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 ```cpp
 #include <ox/claw/write.hpp>
 
-ox::Result<ox::Buffer> writeSpritePalette(NostalgiaPalette *pal) noexcept {
-	return ox::writeClaw(&pal);
+ox::Result<ox::Buffer> writeSpritePaletteMC(NostalgiaPalette const&pal) noexcept {
+	return ox::writeClaw(pal);
 }
 ```
 

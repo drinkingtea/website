@@ -1,5 +1,5 @@
 ---
-title:  "Ox Preloader"
+title: "Ox Preloader"
 author: Gary Talent
 description: "Using ROM as RAM"
 categories: ["Tech", "Programming"]
@@ -10,7 +10,7 @@ date: 2023-02-27
 showtoc: true
 ---
 
-Note: this is based on the following commit in the [Nostalgia repo](https://git.drinkingtea.net/drinkingtea/nostalgia):
+Note: this is based on the following revision in the [Nostalgia repo](https://git.drinkingtea.net/drinkingtea/nostalgia):
 [e9965a63ce6a8df6427052b5464f0525c61b65fc](https://git.drinkingtea.net/drinkingtea/nostalgia/src/commit/e9965a63ce6a8df6427052b5464f0525c61b65fc)
 
 This might be the most insane piece of software I have ever written.
@@ -37,8 +37,8 @@ ROM on the other hand, has a whopping 32MB!
 And on the GBA, the ROM reads at the same speed as the 256KB segment with the
 16 bit bus, meaning the distinction between storage and memory becomes less
 stark on the GBA.
-Insofar as the you do not need your memory to be writable, the GBA actually has
-as much memory as the PS2 (or slightly more if you actually count RAM).
+Insofar as you do not need your memory to be writable, the GBA actually has as
+much memory as the PS2 (or slightly more if you count the actual RAM).
 
 The only downside of ROM is in the name: it is read only.
 All data in ROM must be written at the time that you application is packaged.
@@ -48,8 +48,8 @@ And this is not some hard to use format that limits you from doing anything
 resembling normal programming.
 The preloaded data will actually map to your data structures so you can use
 them as you would if you had simply read it from Metal Claw or JSON at runtime.
-It will also let you use types like ox::Vector and ox::String, which actually
-allocate.
+It will also let you use types like ```ox::Vector``` and ```ox::String```,
+which actually allocate.
 Pointer sizes and alignments get translated to the appropriate architecture.
 
 There are of course some limitations:
@@ -297,8 +297,8 @@ sizes as with integers.
 Also, the locations that the pointers point to will not be valid for the
 preload buffer.
 
-This is the main reason we needed the custom ```sizeOf``` and ```alignOf```
-functions.
+Pointers are the main reason we needed the custom ```sizeOf``` and
+```alignOf``` functions.
 Really, pointers are the main reason this whole thing is not a totally trivial
 problem when targeting a platform with the same endianness as your build
 machine.

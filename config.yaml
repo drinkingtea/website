@@ -84,8 +84,6 @@ params:
           url: "/index.xml"
         - name: Gitea
           url: "https://git.drinkingtea.net/drinkingtea"
-        - name: GitHub
-          url: "https://github.com/drinkingtea"
 
     cover:
         hidden: true # hide everywhere but not in structured data

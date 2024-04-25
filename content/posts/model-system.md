@@ -132,16 +132,18 @@ struct NostalgiaGraphic {
 	ox::Vector<uint8_t> pixels = {};
 };
 
-// CommonPtrWith allows the StudioConfig to const or non-const, though certain
-// handlers may still require non-const
-constexpr ox::Error model(auto *handler, ox::CommonPtrWith<StudioConfig> auto *o) noexcept {
-	handler->template setTypeInfo<StudioConfig>();
-	oxReturnError(handler->field("bpp", bpp));
-	oxReturnError(handler->field("rows", rows));
-	oxReturnError(handler->field("columns", columns));
-	oxReturnError(handler->field("defaultPalette", defaultPalette));
-	oxReturnError(handler->field("pal", pal));
-	oxReturnError(handler->field("pixels", pixels));
+// CommonPtrWith allows the NostalgiaGraphic to be const or non-const, though
+// certain handlers may still require non-const
+constexpr ox::Error model(
+	auto *handler,
+	ox::CommonPtrWith<NostalgiaGraphic> auto *o) noexcept {
+	handler->template setTypeInfo<NostalgiaGraphic>();
+	oxReturnError(handler->field("bpp", &o->bpp));
+	oxReturnError(handler->field("rows", &o->rows));
+	oxReturnError(handler->field("columns", &o->columns));
+	oxReturnError(handler->field("defaultPalette", &o->defaultPalette));
+	oxReturnError(handler->field("pal", &o->pal));
+	oxReturnError(handler->field("pixels", &o->pixels));
 	return {};
 }
 ```
@@ -170,7 +172,7 @@ oxModelBegin(NostalgiaGraphic)
 oxModelEnd()
 ```
 The macros are the preferred way to define models, as the generated model
-function can be updated without having to modify all the existing models.
+function can be updated without having to modify all existing models.
 
 If you want the model field names to differ from those of the struct, you can
 call ```oxModelFieldRename``` instead of ```oxModelField```:
@@ -202,8 +204,8 @@ struct Configv1 {
 };
 constexpr ox::Error model(auto *handler, ox::CommonPtrWith<Configv1> auto *o) noexcept {
 	handler->template setTypeInfo<Configv1>();
-	oxReturnError(handler->field("projectPath", &projectPath));
-	oxReturnError(handler->field("openFiles", &openFiles));
+	oxReturnError(handler->field("projectPath", &o->projectPath));
+	oxReturnError(handler->field("openFiles", &o->openFiles));
 	return {};
 }
 struct Config {
@@ -215,9 +217,9 @@ struct Config {
 };
 constexpr ox::Error model(auto *handler, ox::CommonPtrWith<Config> auto *o) noexcept {
 	handler->template setTypeInfo<Config>();
-	oxReturnError(handler->field("projectPath", &projectPath));
-	oxReturnError(handler->field("openFiles", &openFiles));
-	oxReturnError(handler->field("logLevel", &logLevel));
+	oxReturnError(handler->field("projectPath", &o->projectPath));
+	oxReturnError(handler->field("openFiles", &o->openFiles));
+	oxReturnError(handler->field("logLevel", &o->logLevel));
 	return {};
 }
 ```
@@ -247,7 +249,7 @@ Placing them in the struct is preferred, but that is not always an option (i.e.
 a type from an external library).
 With the type info already living in the struct, the only use of the model is
 to pass the fields to the handlers.
-Once C++ receives proper reflection support, most of models can be deleted, but
+Once C++ receives proper reflection support, most models can be deleted, but
 the type identifiers will still have uses.
 
 ## Type Descriptors
@@ -473,10 +475,12 @@ types at runtime:
 	auto t = ts->template getLoad("net.drinkingtea.nostalgia.core.TileSheet", 1, {}).unwrap();
 	ModelObject obj;
 	oxIgnoreError(obj.setType(t));
-	oxIgnoreError(obj["bpp"].set<int8_t>(4)); // ok
-	oxIgnoreError(obj["bpp"].set<ox::String>("asdf")); // will panic due to type mismatch
-	oxIgnoreError(obj["bits_per_pixel"].set(4)); // will panic because bits_per_pixel does not exist in TileSheet
-	;
+	// ok
+	oxIgnoreError(obj["bpp"].set<int8_t>(4));
+	// will panic due to type mismatch
+	oxIgnoreError(obj["bpp"].set<ox::String>("asdf"));
+	// will panic because bits_per_pixel does not exist in TileSheet
+	oxIgnoreError(obj["bits_per_pixel"].set(4));
 ```
 
 
