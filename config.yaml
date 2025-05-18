@@ -1,8 +1,9 @@
 baseURL: "https://drinkingtea.net"
 languageCode: "en-us"
 title: "DrinkingTea"
-copyright: "Copyright © 2021-2022, Gary Talent; all rights reserved."
-paginate: 5
+copyright: "Copyright © 2021-2024, Gary Talent; all rights reserved."
+pagination:
+  pagerSize: 5
 theme: PaperMod
 
 enableRobotsTXT: true

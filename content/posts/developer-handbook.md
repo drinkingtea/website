@@ -12,7 +12,9 @@ Note: this document is a copy of a document in the [Nostalgia
 repo](https://git.drinkingtea.net/drinkingtea/nostalgia) and will periodically
 be updated.
 
-Last updated: 2023-11-29
+Last updated: 2024-05-29
+
+# Nostalgia Developer Handbook
 
 ## About
 
@@ -34,38 +36,60 @@ All components have a platform indicator next to them:
     (-G) - GBA
     (P-) - PC
 
-* nostalgia
-   * modules
-	  * core - platform abstraction and user I/O (PG)
-		 * gba - GBA implementation (-G)
-		 * glfw - GLFW implementation (P-)
-		 * userland - common things needed by all non-bare-metal implementations (P-)
-		 * studio - studio plugin for core (P-)
-	  * scene - defines processes map data (PG)
-		 * studio - studio plugin for scene (P-)
-   * player - plays the games (PG)
-   * studio - makes the games (P-)
-   * tools - command line tools (P-)
-	   * pack - packs a studio project directory into an OxFS file (P-)
-* keel - Asset management framework
-* glutils - OpenGL helpers (P-)
-* studio - framework for making studio application for making games (P-)
-   * modlib - library for making studio modules
-   * applib - has a function call that starts the application, allows actual
-	          app to statically link and load up modules
-* tools - command line tools (P-)
+* Nostalgia
+  * modules
+    * core - graphics system for Nostalgia (PG)
+      * gba - GBA implementation (PG)
+      * opengl - OpenGL implementation (P-)
+      * studio - studio plugin for core (P-)
+      * keel - keel plugin for core (PG)
+    * scene - defines & processes map data (PG)
+      * studio - studio plugin for scene (P-)
+      * keel - keel plugin for scene (PG)
+  * player - plays the games (PG)
+  * studio - makes the games (P-)
+  * tools - command line tools (P-)
     * pack - packs a studio project directory into an OxFS file (P-)
+* Olympic
+    * Applib - Library for creating apps as libraries that injects Keel and Studio modules
+    * Keel - asset management system (PG)
+    * Studio - where most of the studio code lives as library (P-)
+        * applib - used for per project studio executables
+        * modlib - used for studio modules to interact with studio
+    * Turbine - platform abstraction and user I/O (PG)
+        * gba - GBA implementation (PG)
+        * glfw - GLFW implementation (P-)
 * deps - project dependencies
   * Ox - Library of things useful for portable bare metal and userland code. Not really that external...
     * clargs - Command Line Args processing (PG)
     * claw - Reads and writes Metal or Organic Claw with header to indicate which
+    * event - Qt-like signal system
     * fs - file system (PG)
+	 * logconn - connects logging to Bullock (P-)
     * mc - Metal Claw serialization, builds on model (PG)
     * oc - Organic Claw serialization (wrapper around JsonCpp), builds on model (P-)
     * model - Data structure modelling (PG)
+	 * preloader - library for handling preloading of data (PG)
     * std - Standard-ish Library with a lot missing and some things added (PG)
-  * TeaGBA - Library for interacting with GBA, with startup code mostly pulled
-	         from devkitPro under MPL 2.0 (-G)
+  * GlUtils - OpenGL helpers (P-)
+  * teagba - GBA assembly startup code (mostly pulled from devkitPro under MPL
+	          2.0), and custom GBA hardware interop code (-G)
+
+## Platform Notes
+
+### GBA
+
+The GBA has two major resources for learning about its hardware:
+
+* [Tonc](https://www.coranac.com/tonc/text/toc.htm) - This is basically a short
+  book on the GBA and low level development.
+* [GBATEK](https://rust-console.github.io/gbatek-gbaonly/) - This is a more
+  concise resource that mostly tells about memory ranges and registers.
+
+#### Graphics
+
+* Background Palette: 256 colors
+* Sprite Palette:     256 colors
 
 ## Code Base Conventions
 
@@ -154,18 +178,10 @@ classes in question.
 
 ### Error Handling
 
-Exceptions are clean and nice in userland code running in environments with
-expansive system resources, but they are a bit of a pain in small bare metal
-environments.
-The GBA build has them disabled.
-Exceptions cause also the compiler to generate a great deal of extra code that
-inflates the size of the binary.
-The binary size bloat is often cited as one of the main reasons why many
-embedded developers prefer C to C++.
-
-Instead of throwing exceptions, all engine code must return Ox error codes.
-For the sake of consistency, try to stick to Ox error codes in non-engine code
-as well.
+The GBA build has exceptions disabled.
+Instead of throwing exceptions, all engine code must return ```ox::Error```s.
+For the sake of consistency, try to stick to ```ox::Error``` in non-engine code
+as well, but non-engine code is free to use exceptions when they make sense.
 Nostalgia and Ox both use ```ox::Error``` to report errors. ```ox::Error``` is
 a struct that has overloaded operators to behave like an integer error code,
 plus some extra fields to enhance debuggability.
@@ -211,11 +227,35 @@ int caller2() {
 	std::cout << val << '\n';
 	return 0;
 }
+
+ox::Error caller3(int &i) {
+    return foo(i).moveTo(i);
+}
+
+ox::Error caller4(int &i) {
+    return foo(i).copyTo(i);
+}
+
+int caller5(int i) {
+    return foo(i).unwrap(); // unwrap will kill the program if there is an error
+}
+
+int caller6(int i) {
+    return foo(i).unwrapThrow(); // unwrap will throw if there is an error
+}
+
+int caller7(int i) {
+    return foo(i).or_value(0); // will return 0 if foo returned an error
+}
+
+ox::Result<uint64_t> caller8(int i) {
+    return foo(i).to<uint64_t>(); // will convert the result of foo to uint64_t
+}
 ```
 
 Lastly, there are a few macros available to help in passing ```ox::Error```s
-back up the call stack, ```oxReturnError```, ```oxThrowError```,
-```oxIgnoreError```, and ```oxRequire```.
+back up the call stack, ```oxReturnError```, ```oxThrowError```, and
+```oxRequire```.
 
 ```oxReturnError``` is by far the more helpful of the two.
 ```oxReturnError``` will return an ```ox::Error``` if it is not 0 and
@@ -224,13 +264,10 @@ Because exceptions are disabled for GBA builds and thus cannot be used in the
 engine, ```oxThrowError``` is  only really useful at the boundary between
 engine libraries and Nostalgia Studio.
 
-```oxIgnoreError``` does what it says, it ignores the error.
 Since ```ox::Error``` is always nodiscard, you must do something with them.
-In extremely rare cases, you may not have anything you can do with them or you
-may know the code will never fail in that particular instance.
-This should be used very sparingly.
-At the time of this writing, it has only been used 4 times in 20,000 lines of
-code.
+In rare cases, you may not have anything you can do with them or you may know
+the code will never fail in that particular instance.
+This should be used sparingly.
 
 
 ```cpp
@@ -249,7 +286,7 @@ ox::Error engineCode() noexcept {
 
 void anyCode() {
     auto [val, err] = foo(1);
-    oxIgnoreError(err);
+    std::ignore = err;
     doStuff(val);
 }
 ```
@@ -270,6 +307,7 @@ ox::Error engineCode() noexcept {
 	return OxError(0);
 }
 ```
+
 Ox also has the ```oxRequire``` macro, which will initialize a value if there is no error, and return if there is.
 It aims to somewhat emulate the ```?``` operator in Rust and Swift.
 
@@ -304,6 +342,9 @@ ox::Result<int> f2() noexcept {
 * ```oxRequireT``` - oxRequire Throw
 * ```oxRequireMT``` - oxRequire Mutable Throw
 
+The throw variants of ```oxRequire``` are generally legacy code.
+```ox::Result::unwrapThrow``` is generally preferred now.
+
 ### Logging and Output
 
 Ox provides for logging and debug prints via the ```oxTrace```, ```oxDebug```, and ```oxError``` macros.
@@ -332,8 +373,8 @@ the user almost certainly wants to know about it.
 ```oxTrace``` and ```oxTracef```:
 ```cpp
 void f(int x, int y) { // x = 9, y = 4
-	oxTrace("nostalgia.core.sdl.gfx") << "f:" << x << y; // Output: "f: 9 4"
-	oxTracef("nostalgia.core.sdl.gfx", "f: {}, {}", x, y); // Output: "f: 9, 4"
+	oxTrace("nostalgia::core::sdl::gfx") << "f:" << x << y; // Output: "f: 9 4"
+	oxTracef("nostalgia::core::sdl::gfx", "f: {}, {}", x, y); // Output: "f: 9, 4"
 }
 ```
 
@@ -495,16 +536,13 @@ implements a superset of JSON.
 OrganicClaw requires support for 64 bit integers, whereas normal JSON
 technically does not.
 
+These formats do not currently support floats.
+
 There is also a wrapper format called Claw that provides a header at the
 beginning of the file and can dynamically switch between the two depending on
 what the header says is present.
 The Claw header also includes information about the type and type version of
 the data.
-
-Except when the data is exported for loading on the GBA, Claw is always used as
-a wrapper around the bare formats.
-
-These formats do not currently support ```float```s.
 
 Claw header: ```M1;net.drinkingtea.nostalgia.core.NostalgiaPalette;1;```
 
@@ -514,6 +552,9 @@ That reads:
 * Type ID is net.drinkingtea.nostalgia.core.NostalgiaPalette
 * Type version is 1
 
+Except when the data is exported for loading on the GBA, Claw is always used as
+a wrapper around the bare formats.
+
 #### Metal Claw Example
 
 ##### Read
@@ -521,19 +562,13 @@ That reads:
 ```cpp
 #include <ox/mc/read.hpp>
 
-ox::Result<NostalgiaPalette> loadPalette1(Buffer const&buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette1(ox::BufferView const&buff) noexcept {
 	return ox::readMC<NostalgiaPalette>(buff);
 }
 
-ox::Result<NostalgiaPalette> loadPalette2(Buffer const&buff) noexcept {
-	return ox::readMC<NostalgiaPalette>(buff.data(), buff.size());
-}
-
-ox::Result<NostalgiaPalette> loadPalette3(Buffer const&buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette2(ox::BufferView const&buff) noexcept {
 	NostalgiaPalette pal;
-	std::size_t sz = 0;
-	oxReturnError(ox::readMC(buff.data(), buff.size(), pal, &sz));
-	buffer.resize(sz);
+	oxReturnError(ox::readMC(buff, pal));
 	return pal;
 }
 ```
@@ -563,17 +598,13 @@ ox::Result<ox::Buffer> writeSpritePalette2(NostalgiaPalette const&pal) noexcept 
 ```cpp
 #include <ox/oc/read.hpp>
 
-ox::Result<NostalgiaPalette> loadPalette1(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette1(ox::BufferView const&buff) noexcept {
 	return ox::readOC<NostalgiaPalette>(buff);
 }
 
-ox::Result<NostalgiaPalette> loadPalette2(const Buffer &buff) noexcept {
-	return ox::readOC<NostalgiaPalette>(buff.data(), buff.size());
-}
-
-ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette2(ox::BufferView const&buff) noexcept {
 	NostalgiaPalette pal;
-	oxReturnError(ox::readOC(buff.data(), buff.size(), &pal));
+	oxReturnError(ox::readOC(buff, &pal));
 	return pal;
 }
 ```
@@ -583,7 +614,13 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 ```cpp
 #include <ox/oc/write.hpp>
 
-ox::Result<ox::Buffer> writeSpritePaletteOC(NostalgiaPalette const&pal) noexcept {
+ox::Result<ox::Buffer> writeSpritePalette1(NostalgiaPalette const&pal) noexcept {
+	ox::Buffer buffer(ox::units::MB);
+	oxReturnError(ox::writeOC(buffer.data(), buffer.size(), pal));
+	return buffer;
+}
+
+ox::Result<ox::Buffer> writeSpritePalette2(NostalgiaPalette const&pal) noexcept {
 	return ox::writeOC(pal);
 }
 ```
@@ -595,17 +632,13 @@ ox::Result<ox::Buffer> writeSpritePaletteOC(NostalgiaPalette const&pal) noexcept
 ```cpp
 #include <ox/claw/read.hpp>
 
-ox::Result<NostalgiaPalette> loadPalette1(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette1(ox::BufferView const&buff) noexcept {
 	return ox::readClaw<NostalgiaPalette>(buff);
 }
 
-ox::Result<NostalgiaPalette> loadPalette2(const Buffer &buff) noexcept {
-	return ox::readClaw<NostalgiaPalette>(buff.data(), buff.size());
-}
-
-ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
+ox::Result<NostalgiaPalette> loadPalette2(ox::BufferView const&buff) noexcept {
 	NostalgiaPalette pal;
-	oxReturnError(ox::readClaw(buff.data(), buff.size(), &pal));
+	oxReturnError(ox::readClaw(buff, pal));
 	return pal;
 }
 ```
@@ -615,7 +648,7 @@ ox::Result<NostalgiaPalette> loadPalette3(const Buffer &buff) noexcept {
 ```cpp
 #include <ox/claw/write.hpp>
 
-ox::Result<ox::Buffer> writeSpritePaletteMC(NostalgiaPalette const&pal) noexcept {
+ox::Result<ox::Buffer> writeSpritePalette(NostalgiaPalette const&pal) noexcept {
 	return ox::writeClaw(pal);
 }
 ```

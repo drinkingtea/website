@@ -10,8 +10,11 @@ date: 2023-02-27
 showtoc: true
 ---
 
+Note: While this was originally published on 2023-02-27, it was updated to
+reflect later changes to the codebase on 2025-05-18.
+
 Note: this is based on the following revision in the [Nostalgia repo](https://git.drinkingtea.net/drinkingtea/nostalgia):
-[e9965a63ce6a8df6427052b5464f0525c61b65fc](https://git.drinkingtea.net/drinkingtea/nostalgia/src/commit/e9965a63ce6a8df6427052b5464f0525c61b65fc)
+[d6e4ab7a24a0a4b035c6578dfa30ef35170b5a01](https://git.drinkingtea.net/drinkingtea/nostalgia/src/commit/d6e4ab7a24a0a4b035c6578dfa30ef35170b5a01)
 
 This might be the most insane piece of software I have ever written.
 That's probably mostly because I have never heard such a system as this, which
@@ -27,7 +30,7 @@ The GBA, compared to your PC or phone, has an absolutely paltry amount of
 memory.
 The whole system has 288KB of standard work RAM, and that is not contiguous.
 WRAM on the GBA exists in two segments: a 32KB segment with a 32 bit bus and a
-256KB with 16 bit bus.
+256KB segment with a 16 bit bus.
 With such a small amount of memory, heap usage must be strictly managed.
 The use of vectors and allocating strings is not generally a good idea.
 Allocations in general are not a good idea, unless they will exist for the life
@@ -47,7 +50,8 @@ You cannot simply load data into ROM at runtime, which is why we want to
 And this is not some hard to use format that limits you from doing anything
 resembling normal programming.
 The preloaded data will actually map to your data structures so you can use
-them as you would if you had simply read it from Metal Claw or JSON at runtime.
+them as you would if you had simply read it from
+[MetalClaw](/posts/metal-claw/) or JSON at runtime.
 It will also let you use types like ```ox::Vector``` and ```ox::String```,
 which actually allocate.
 Pointer sizes and alignments get translated to the appropriate architecture.
@@ -68,84 +72,103 @@ Preloader in an early iteration of its scene system.
 Note: while this segment is written with an SOA structure, that is not a
 requirement for the preloader.
 ```cpp
-struct SceneStatic {
-
-	constexpr static auto TypeName = "net.drinkingtea.nostalgia.scene.SceneStatic";
-	constexpr static auto TypeVersion = 1;
-	constexpr static auto Preloadable = true;
-
-	struct Tile {
-		uint16_t &tileMapIdx;
-		uint8_t &tileType;
-		constexpr Tile(uint16_t *pTileMapIdx, uint8_t *pTileType) noexcept:
-			tileMapIdx(*pTileMapIdx),
-			tileType(*pTileType) {
-		}
-	};
-	struct Layer {
-		uint16_t &columns;
-		uint16_t &rows;
-		ox::Vector<uint16_t> &tileMapIdx;
-		ox::Vector<uint8_t> &tileType;
-		constexpr Layer(
-				uint16_t *pColumns,
-				uint16_t *pRows,
-				ox::Vector<uint16_t> *pTileMapIdx,
-				ox::Vector<uint8_t> *pTileType) noexcept:
-			columns(*pColumns),
-			rows(*pRows),
-			tileMapIdx(*pTileMapIdx),
-			tileType(*pTileType) {
-		}
-		[[nodiscard]]
-		constexpr Tile tile(std::size_t i) noexcept {
-			return {&tileMapIdx[i], &tileType[i]};
-		}
-		constexpr auto setDimensions(geo::Size dim) noexcept {
-			columns = dim.width;
-			rows = dim.height;
-			const auto tileCnt = static_cast<unsigned>(columns * rows);
-			tileMapIdx.resize(tileCnt);
-			tileType.resize(tileCnt);
-		}
-	};
-
-	ox::FileAddress tilesheet;
-	ox::Vector<ox::FileAddress> palettes;
-	// tile layer data
-	ox::Vector<uint16_t> columns;
-	ox::Vector<uint16_t> rows;
-	ox::Vector<ox::Vector<uint16_t>> tileMapIdx;
-	ox::Vector<ox::Vector<uint8_t>>  tileType;
-
-	[[nodiscard]]
-	constexpr Layer layer(std::size_t i) noexcept {
-		return {&columns[i], &rows[i], &tileMapIdx[i], &tileType[i]};
-	}
-
-	constexpr auto setLayerCnt(std::size_t layerCnt) noexcept {
-		this->columns.resize(layerCnt);
-		this->rows.resize(layerCnt);
-		this->tileMapIdx.resize(layerCnt);
-		this->tileType.resize(layerCnt);
-	}
-
+struct TileStatic {
+	static constexpr auto TypeName = "net.drinkingtea.jasper.world.TileStatic";
+	static constexpr auto TypeVersion = 1;
+	uint8_t objIdxRefSet{};
+	uint8_t tileType{};
+	uint8_t layerAttachments{};
 };
 
-oxModelBegin(SceneStatic)
-	oxModelField(tilesheet)
-	oxModelField(palettes)
-	oxModelField(columns)
-	oxModelField(rows)
-	oxModelFieldRename(tile_map_idx, tileMapIdx)
-	oxModelFieldRename(tile_type, tileType)
-oxModelEnd()
+OX_MODEL_BEGIN(TileStatic)
+	OX_MODEL_FIELD(objIdxRefSet)
+	OX_MODEL_FIELD(tileType)
+	OX_MODEL_FIELD(layerAttachments)
+OX_MODEL_END()
+
+
+struct BgLayer {
+	static constexpr auto TypeName = "net.drinkingtea.jasper.world.BgLayer";
+	static constexpr auto TypeVersion = 1;
+	uint8_t cbb{};
+	ox::Vector<TileStatic> tiles;
+};
+
+OX_MODEL_BEGIN(BgLayer)
+	OX_MODEL_FIELD(cbb)
+	OX_MODEL_FIELD(tiles)
+OX_MODEL_END()
+
+
+struct ObjTileRefSet {
+	static constexpr auto TypeName = "net.drinkingtea.jasper.world.ObjTileRefSet";
+	static constexpr auto TypeVersion = 1;
+	uint16_t tilesheetIdx{};
+	uint16_t cbbIdx{};
+	uint8_t cbb{};
+	uint8_t palBank{};
+	// which tilesheet to use
+	uint8_t tilesheetId{};
+	uint8_t tileCnt{};
+	// each successive frame will use tileIdx[i] + tileCnt * frameNo for the tileIdx
+	uint8_t frameSets{};
+	uint8_t frames{};
+	uint16_t intervalMs{};
+};
+
+OX_MODEL_BEGIN(ObjTileRefSet)
+	OX_MODEL_FIELD(tilesheetIdx)
+	OX_MODEL_FIELD(cbbIdx)
+	OX_MODEL_FIELD(cbb)
+	OX_MODEL_FIELD(palBank)
+	OX_MODEL_FIELD(tilesheetId)
+	OX_MODEL_FIELD(tileCnt)
+	OX_MODEL_FIELD(frameSets)
+	OX_MODEL_FIELD(frames)
+	OX_MODEL_FIELD(intervalMs)
+OX_MODEL_END()
+
+[[nodiscard]]
+constexpr bool operator==(ObjTileRefSet const&a, ObjTileRefSet const&b) noexcept {
+	return
+		a.tilesheetIdx == b.tilesheetIdx &&
+		a.cbbIdx == b.cbbIdx &&
+		a.cbb == b.cbb &&
+		a.palBank == b.palBank &&
+		a.tilesheetId == b.tilesheetId &&
+		a.tileCnt == b.tileCnt &&
+		a.frameSets == b.frameSets &&
+		a.frames == b.frames &&
+		a.intervalMs == b.intervalMs;
+}
+
+
+struct WorldStatic {
+	static constexpr auto TypeName = "net.drinkingtea.jasper.world.WorldStatic";
+	static constexpr auto TypeVersion = 1;
+	static constexpr auto Preloadable = true;
+	ox::Vector<ObjTileRefSet> objTileRefSets;
+	ox::Vector<ox::FileAddress> tilesheets;
+	ox::Vector<ox::FileAddress> palettes;
+	int16_t columns{};
+	int16_t rows{};
+	ox::Array<BgLayer, 3> map;
+};
+
+OX_MODEL_BEGIN(WorldStatic)
+	OX_MODEL_FIELD(objTileRefSets)
+	OX_MODEL_FIELD(tilesheets)
+	OX_MODEL_FIELD(palettes)
+	OX_MODEL_FIELD(columns)
+	OX_MODEL_FIELD(rows)
+	OX_MODEL_FIELD(map)
+OX_MODEL_END()
 ```
 
 Notice that in addition to the TypeName and TypeVersion values, which are a
-standard part of Ox models, SceneStatic also has a Preloadable field, which is
-set to true.
-If Preloadable is not set to true or does not exist, ```nost-pack``` will not
+standard part of Ox models, ```WorldStatic``` also has a Preloadable field,
+which is set to true.
+If Preloadable is not set to true or does not exist, ```Keel Pack``` will not
 preload files of this type.
 Only the highest level type in the composition must be marked Preloadable.
 Types of member variables can leave it unmarked or false.
@@ -155,8 +178,8 @@ in ROM on the GBA.
 Pointers to the allocations are correct, and not counting spacing for
 alignment, all data is contiguous.
 
-There is no special function that must be written just for SceneStatic to allow
-it to preload.
+There is no special function that must be written just for ```WorldStatic``` to
+allow it to preload.
 Only the standard Ox model is necessary.
 
 ## How does it work?
@@ -193,52 +216,52 @@ struct GbaPlatSpec {
 	static constexpr PtrType RomStart = 0x08000000;
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const bool) noexcept {
+	static constexpr std::size_t alignOf(bool) noexcept {
 		return 1;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const uint8_t) noexcept {
+	static constexpr std::size_t alignOf(uint8_t) noexcept {
 		return 1;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const uint16_t) noexcept {
+	static constexpr std::size_t alignOf(uint16_t) noexcept {
 		return 2;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const uint32_t) noexcept {
+	static constexpr std::size_t alignOf(uint32_t) noexcept {
 		return 4;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const uint64_t) noexcept {
+	static constexpr std::size_t alignOf(uint64_t) noexcept {
 		return 8;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const int8_t)  noexcept {
+	static constexpr std::size_t alignOf(int8_t)  noexcept {
 		return 1;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const int16_t) noexcept {
+	static constexpr std::size_t alignOf(int16_t) noexcept {
 		return 2;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const int32_t) noexcept {
+	static constexpr std::size_t alignOf(int32_t) noexcept {
 		return 4;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const int64_t) noexcept {
+	static constexpr std::size_t alignOf(int64_t) noexcept {
 		return 8;
 	}
 
 	[[nodiscard]]
-	static constexpr std::size_t alignOf(const auto*) noexcept {
+	static constexpr std::size_t alignOf(auto*) noexcept {
 		return 4;
 	}
 
@@ -256,7 +279,7 @@ As stated earlier, the preloader uses the Ox model system to get the structure
 of the types it preloads.
 Using Ox type descriptors, it could actually preload types that are not
 included in the preloading program.
-```nost-pack```, using Ox type descriptors, creates the types dynamically using
+```Keel Pack```, using Ox type descriptors, creates the types dynamically using
 ```ModelValue```.
 
 The preloader starts by creating a preload buffer, which is where the preloaded
@@ -282,7 +305,8 @@ the plat spec to ensure the correct endianness.
 
 The C++ standard does not actually specify that bools are 1 byte and no major
 compiler makes them any other size.
-Still, the plat spec will allow you specify a size for them.
+Accordingly, plat specs currently do no supply a way to specify a different
+size for bools.
 
 #### Loading Member Structs
 
@@ -309,7 +333,7 @@ can write out the pointer itself as an appropriately sized unsigned integer.
 The size is taken care of, but not the location of the data pointed to.
 When loading the data of the child allocation, the preloader jumps to the
 current end of the buffer and extend it to have enough space for the child
-struct.
+allocation.
 Once the separate allocation has been written at the end of the buffer, the
 preloader will set the buffer write location back to the location of the
 pointer once the pointed to data has been loaded, and from there continue
@@ -323,8 +347,8 @@ two pointers to the same address, the data at that address will get duplicated.
 Now, the pointer is the right size and the data is getting loaded, but the
 pointer itself is still garbage.
 Instead of writing the address of the original pointer, we write the offset of
-the pointed data from the start of the pointer, or 0 if the original pointer
-was null.
+the pointed data from the start of the preload buffer, or 0 if the original
+pointer was null.
 That is still not going to be correct on the target system.
 To deal with this, we save the location of the pointer to a separate list for
 use later.
@@ -333,14 +357,14 @@ We now need to iterate over all the pointers written to the preload buffer, and
 add the location of ROM (provided by the plat spec) plus the size of all data
 preceding the preload buffer in memory to every non-null pointer. In the case
 of the GBA, this means, the location of ROM + the size of the executable +
-padding to make the executable size a multiple of 8 + the size of the Ox FS
-image.
+alignment padding + the size of the Ox FS image + alignment padding.
 
 ## Accessing Preloaded Data
 
 Now we just need a way to find the data we have preloaded.
 The way you do this could vary and the preloader does not provide for this.
-```nost-pack``` does provide for this though, and we will cover that here.
+The ```Keel Pack``` Pack utility does provide for this though, and we will
+cover that here.
 
 Every root parent struct preloaded will replace the data of the preloaded files
 in the Ox FS image shipped in ROM with the offset of the desired struct from
@@ -362,8 +386,10 @@ and does not require platform specific application code.
 
 The following snippet shows how to load an asset:
 ```cpp
-constexpr ox::FileAddress SceneAddr("/Scenes/Chester.nscn");
-auto scn = foundation::readObj<scene::SceneStatic>(ctx.get(), SceneAddr).unwrap();
+// AssetRef serves as a reference counting pointer on non-ROM platforms, and is
+// merely a pointer wrapper on ROM platforms.
+keel::AssetRef<world::WorldStatic> scn =
+    keel::readObj<world::WorldStatic>(ctx, "/Worlds/Chester.jwld").unwrap();
 ```
 
 On the GBA, that data already exists in ROM at the time the program starts, and

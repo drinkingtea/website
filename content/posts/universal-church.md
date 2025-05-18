@@ -78,15 +78,15 @@ Creation is good.
 Praise God for the many good things he created.
 Admire his workmanship.
 
-Creation does not simply point to God as Creator, but also as Redeemer.
+Creation does not simply point to God as Creator though, but also as Redeemer.
 An unfallen creation would be good.
 There are good purposes that an unfallen creation could serve, but God created
-creation with a deeper purpose in mind.
-The purpose we have discussed thus far is only the superficial purpose of
-creation.
+creation with a deeper fulfillment of its purpose in mind.
+What we have discussed thus far is only the superficial fulfillment of
+its purpose of creation.
 
-Essential to the deeper purpose of creation is its failure to live up to its
-superficial purpose.
+Essential to the deeper fulfillment of the purpose of creation is its failure
+to live up to a superficial fulfillment of its purpose.
 We know this, at least in part, because Paul says in Ephesians 3:9b-10 that the
 Church is central to the purpose of creation:
 
@@ -98,13 +98,13 @@ Creation would not exist were it not for the Church, and the Church would not
 be the Church without redemption, and redemption could not occur without the
 Fall.
 The Church, the redeemed people of God, require redemption, which in turn
-requires a Fall.
+requires the Fall.
 
 For anyone who ponders the Gospel long enough, this should be on some level
 obvious.
 The Gospel is simply too beautiful to truly be Plan B.
 
-The first creation itself has always testified to a deeper purpose.
+The first creation itself has always testified to a deeper fulfillment of purpose.
 Some might claim that the family is the most important institution in creation.
 You could make a case for that in the old creation.
 The family is often described as something like "the foundational unit of

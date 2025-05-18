@@ -50,7 +50,7 @@ Unfortunately, we really cannot fix ```std::unordered_map``` without amending
 the C++ standard.
 However, we can fix ```ox::HashMap```.
 
-This is where ```MaybeView``` comes in.
+This is where ```ox::MaybeView``` comes in.
 
 ```cpp
 // these are actually spread out across a few different files in Ox
